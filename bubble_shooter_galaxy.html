@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#10162f">
+<title>Bubble Shooter Galaxy</title>
+<style>
+:root{--bg:#10162f;--panel:#1b2448;--gold:#ffd76a;--text:#f6f7ff}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 0%,#283b77 0,#10162f 60%);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--text);touch-action:manipulation}
+body{display:flex;justify-content:center;align-items:center}.app{position:relative;width:min(100vw,480px);height:100dvh;max-height:960px;display:flex;flex-direction:column;padding:12px 12px 14px;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}.brand{font-weight:900;letter-spacing:.5px;font-size:clamp(17px,4.5vw,23px);text-shadow:0 2px 15px #7c5cff}.brand span{color:var(--gold)}.pill{background:#ffffff12;border:1px solid #ffffff24;border-radius:14px;padding:7px 11px;text-align:center;min-width:72px}.pill small{display:block;font-size:10px;opacity:.72;text-transform:uppercase;letter-spacing:1px}.pill b{font-size:17px}
+.progress{height:7px;background:#ffffff17;border-radius:20px;overflow:hidden}.progress>div{height:100%;width:0;background:linear-gradient(90deg,#5af0e5,#8b75ff,#ff75be);transition:width .25s}
+.stage{position:relative;flex:1;min-height:0;border:1px solid #ffffff1d;border-radius:24px;overflow:hidden;background:linear-gradient(180deg,#1a2852 0%,#182144 55%,#121932 100%);box-shadow:0 16px 50px #0005,inset 0 1px #ffffff18}
+canvas{width:100%;height:100%;display:block;touch-action:none}.hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;pointer-events:none}.hud span{background:#0b1029aa;border:1px solid #ffffff18;border-radius:12px;padding:6px 10px;font-size:12px}
+.bottom{display:flex;gap:9px;align-items:center}.action{border:0;border-radius:15px;padding:12px 10px;color:#10162f;font-weight:900;font-size:13px;background:linear-gradient(135deg,#ffe58c,#ffb94e);box-shadow:0 5px 0 #a96927;cursor:pointer;flex:1}.action.secondary{background:#ffffff12;color:white;border:1px solid #ffffff2c;box-shadow:none}.action:active{transform:translateY(2px);box-shadow:none}.hint{text-align:center;font-size:11px;opacity:.7;margin-top:-3px}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:#0a1025c9;backdrop-filter:blur(8px);z-index:5}.card{width:100%;max-width:340px;border:1px solid #ffffff28;background:linear-gradient(160deg,#27396c,#171e40);border-radius:25px;padding:24px 20px;text-align:center;box-shadow:0 25px 80px #0008}.logo{font-size:48px;filter:drop-shadow(0 6px 15px #9d7bff55)}h1{margin:4px 0 8px;font-size:27px;line-height:1.05}p{font-size:13px;line-height:1.5;opacity:.8;margin:8px 0 18px}.card .action{width:100%;margin-top:7px;padding:14px}.card .secondary{background:#ffffff10;color:#fff;box-shadow:none}.tiny{font-size:10px;opacity:.55;margin-top:14px}.hidden{display:none!important}
+#toast{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);background:#0b1029e8;border:1px solid #ffffff35;border-radius:18px;padding:12px 20px;font-weight:900;pointer-events:none;opacity:0;transition:opacity .2s;z-index:3;white-space:nowrap}
+@media(min-height:800px){.app{padding-top:18px;padding-bottom:20px}.stage{border-radius:28px}}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="top">
+  <div class="brand">BUBBLE <span>GALAXY</span></div>
+  <div class="pill"><small>Level</small><b id="level">1 / 100</b></div>
+  <div class="pill"><small>Score</small><b id="score">0</b></div>
+ </div>
+ <div class="progress"><div id="progress"></div></div>
+ <div class="stage" id="stage">
+  <canvas id="game"></canvas>
+  <div class="hud"><span id="moves">🎯 30 shots</span><span id="best">🏆 Best 0</span></div>
+  <div id="toast">Nice shot!</div>
+  <div class="overlay" id="menu">
+   <div class="card"><div class="logo">🫧</div><h1>Bubble Shooter<br><span style="color:#ffd76a">Galaxy</span></h1><p>Match 3 or more bubbles, clear the board and conquer 100 levels!</p><button class="action" id="play">PLAY NOW</button><button class="action secondary" id="levelsBtn">LEVEL SELECT</button><div class="tiny">Offline prototype • No real ads are active</div></div>
+  </div>
+  <div class="overlay hidden" id="levelMenu">
+   <div class="card"><div class="logo">🌌</div><h1>Choose Level</h1><p>Beat a level to unlock the next one.</p><div id="levelGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:7px;max-height:38vh;overflow:auto"></div><button class="action secondary" id="backMenu">BACK</button></div>
+  </div>
+  <div class="overlay hidden" id="result">
+   <div class="card"><div class="logo" id="resultIcon">✨</div><h1 id="resultTitle">Level Complete!</h1><p id="resultText">Great shooting!</p><button class="action" id="nextBtn">NEXT LEVEL</button><button class="action secondary" id="retryBtn">RETRY</button><button class="action secondary" id="homeBtn">HOME</button><div class="tiny">Rewarded ads can be connected in the Android version.</div></div>
+  </div>
+  <div class="overlay hidden" id="pause">
+   <div class="card"><div class="logo">⏸️</div><h1>Paused</h1><p>Take a breath. The bubbles can wait.</p><button class="action" id="resumeBtn">RESUME</button><button class="action secondary" id="pauseHome">HOME</button></div>
+  </div>
+ </div>
+ <div class="bottom"><button class="action secondary" id="pauseBtn">Ⅱ PAUSE</button><button class="action secondary" id="soundBtn">🔊 SOUND</button><button class="action" id="shootBtn">SHOOT ●</button></div>
+ <div class="hint">Drag to aim • Tap to shoot • Match 3+ same colours</div>
+</div>
+<script>
+(()=>{
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),stage=document.getElementById('stage');
+const $=id=>document.getElementById(id);
+const colors=['#ff5f86','#4fd9e9','#ffd45c','#a58bff','#6be69a','#ff9e50'];
+let W=0,H=0,D=1,grid=[],shooter={x:0,y:0},aim={x:0,y:0},projectile=null,current=0,next=1,score=0,best=+(localStorage.bgBest||0),level=1,shots=30,unlocked=+(localStorage.bgUnlocked||1),sound=true,mode='menu',particles=[],lastTime=0;
+const R=17,STEP=R*1.74,ROW=R*1.52;
+function resize(){const r=stage.getBoundingClientRect();D=Math.min(devicePixelRatio||1,2);W=r.width;H=r.height;canvas.width=Math.round(W*D);canvas.height=Math.round(H*D);ctx.setTransform(D,0,0,D,0,0);shooter={x:W/2,y:H-43};if(!grid.length)makeBoard();draw();}
+window.addEventListener('resize',resize);
+function makeBoard(){grid=[];const rows=Math.min(5+Math.floor((level-1)/4),9),cols=Math.max(6,Math.floor((W-24)/STEP));for(let row=0;row<rows;row++){for(let col=0;col<cols;col++){if(Math.random()<Math.min(.09+(level-1)*.004,.25))continue;grid.push({x:12+R+col*STEP+(row%2?STEP/2:0),y:28+row*ROW,c:Math.floor(Math.random()*(Math.min(3+Math.floor(level/8),colors.length))),row,col,alive:true});}}next=Math.floor(Math.random()*Math.min(3+Math.floor(level/8),colors.length));current=Math.floor(Math.random()*Math.min(3+Math.floor(level/8),colors.length));shots=Math.max(12,30-Math.floor((level-1)/5));$('moves').textContent='🎯 '+shots+' shots';}
+function circle(x,y,r,color,shine=true){const g=ctx.createRadialGradient(x-r*.35,y-r*.4,1,x,y,r);g.addColorStop(0,'#ffffff');g.addColorStop(.15,color);g.addColorStop(1,shade(color));ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffffff70';ctx.lineWidth=1.2;ctx.stroke();if(shine){ctx.fillStyle='#ffffffa8';ctx.beginPath();ctx.ellipse(x-r*.3,y-r*.38,r*.22,r*.11,-.5,0,Math.PI*2);ctx.fill();}}
+function shade(hex){let n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;return `rgb(${Math.floor(r*.48)},${Math.floor(g*.48)},${Math.floor(b*.55)})`;}
+function draw(){if(!W||!H)return;ctx.clearRect(0,0,W,H);
+ // stars
+ for(let i=0;i<30;i++){let x=(i*73+17)%W,y=(i*131+31)%(H*.72);ctx.fillStyle=`rgba(255,255,255,${.12+(i%4)*.08})`;ctx.fillRect(x,y,1.5,1.5);}
+ grid.forEach(b=>{if(b.alive)circle(b.x,b.y,R,colors[b.c]);});
+ if(mode==='playing'){
+  let dx=aim.x-shooter.x,dy=aim.y-shooter.y,len=Math.hypot(dx,dy)||1;dx/=len;dy/=len;if(dy<-.15){ctx.setLineDash([4,7]);ctx.strokeStyle='#ffffff77';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(shooter.x,shooter.y-8);ctx.lineTo(shooter.x+dx*150,shooter.y+dy*150);ctx.stroke();ctx.setLineDash([]);}
+ }
+ // launcher
+ ctx.save();ctx.translate(shooter.x,shooter.y);ctx.fillStyle='#d5e4ff';ctx.beginPath();ctx.arc(0,0,23,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffffffa8';ctx.lineWidth=2;ctx.stroke();circle(0,0,16,colors[current]);ctx.restore();
+ circle(W/2+37,H-35,8,colors[next],false);ctx.fillStyle='#ffffff99';ctx.font='10px system-ui';ctx.textAlign='center';ctx.fillText('NEXT',W/2+37,H-19);
+ particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;});
+ $('score').textContent=score;$('best').textContent='🏆 Best '+best;$('level').textContent=level+' / 100';$('progress').style.width=Math.min(100,(level-1)/99*100)+'%';
+}
+function nearest(x,y){let bestB=null,bd=Infinity;grid.forEach(b=>{if(!b.alive)return;let d=Math.hypot(b.x-x,b.y-y);if(d<bd){bd=d;bestB=b;}});return bestB;}
+function shoot(){if(mode!=='playing'||projectile)return;let dx=aim.x-shooter.x,dy=aim.y-shooter.y;if(dy> -20)dy=-20;let len=Math.hypot(dx,dy);dx/=len;dy/=len;projectile={x:shooter.x,y:shooter.y,vx:dx*8.5,vy:dy*8.5,c:current};shots--; $('moves').textContent='🎯 '+shots+' shots';}
+function tick(t){let dt=Math.min(2,(t-lastTime)/16.67||1);lastTime=t;
+ if(projectile&&mode==='playing'){projectile.x+=projectile.vx*dt;projectile.y+=projectile.vy*dt;
+  if(projectile.x<R||projectile.x>W-R)projectile.vx*=-1;
+  let hit=projectile.y<R+10||grid.some(b=>b.alive&&Math.hypot(b.x-projectile.x,b.y-projectile.y)<R*1.75);
+  if(hit){let b={x:Math.max(R,Math.min(W-R,projectile.x)),y:Math.max(22,projectile.y),c:projectile.c,alive:true};grid.push(b);projectile=null;resolve(b);}
+ }
+ particles=particles.filter(p=>p.life>0);particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=.025*dt;p.vy+=.08*dt;});
+ draw();requestAnimationFrame(tick);}
+function resolve(b){let group=[],seen=new Set(),stack=[b];while(stack.length){let q=stack.pop(),idx=grid.indexOf(q);if(idx<0||seen.has(idx)||!q.alive)continue;seen.add(idx);if(q.c!==b.c)continue;group.push(q);grid.forEach((o,i)=>{if(o.alive&&!seen.has(i)&&Math.hypot(o.x-q.x,o.y-q.y)<R*2.15)stack.push(o);});}
+ if(group.length>=3){group.forEach(q=>{q.alive=false;for(let i=0;i<5;i++)particles.push({x:q.x,y:q.y,vx:(Math.random()-.5)*5,vy:(Math.random()-.7)*5,life:1,r:2+Math.random()*3,color:colors[q.c]});});score+=group.length*10;best=Math.max(best,score);localStorage.bgBest=best;toast('POP! +'+group.length*10);let floating=grid.filter(q=>q.alive&&q.y<110);if(!grid.some(q=>q.alive)){finish(true);return;}}
+ current=next;next=Math.floor(Math.random()*Math.min(3+Math.floor(level/8),colors.length));
+ if(grid.some(q=>q.alive&&q.y>shooter.y-75)){finish(false);return;}if(shots<=0)finish(false);
+}
+function toast(s){$('toast').textContent=s;$('toast').style.opacity=1;setTimeout(()=>$('toast').style.opacity=0,650);}
+function finish(win){mode='result';$('result').classList.remove('hidden');$('resultIcon').textContent=win?'🏆':'💫';$('resultTitle').textContent=win?'Level Complete!':'Try Again';$('resultText').textContent=win?'Amazing! You cleared the bubbles. Score: '+score:'Out of shots or bubbles reached the launcher. Give it another try!';$('nextBtn').classList.toggle('hidden',!win||level>=100);if(win){unlocked=Math.max(unlocked,Math.min(100,level+1));localStorage.bgUnlocked=unlocked;}}
+function start(lvl=1){level=Math.max(1,Math.min(100,lvl));score=0;projectile=null;particles=[];makeBoard();mode='playing';['menu','levelMenu','result','pause'].forEach(id=>$(id).classList.add('hidden'));aim={x:W/2,y:H*.3};draw();}
+function menu(){mode='menu';projectile=null;$('menu').classList.remove('hidden');['levelMenu','result','pause'].forEach(id=>$(id).classList.add('hidden'));draw();}
+function showLevels(){const el=$('levelGrid');el.innerHTML='';for(let i=1;i<=100;i++){const b=document.createElement('button');b.textContent=i;b.className='action'+(i>unlocked?' secondary':'');b.style.padding='9px 0';b.style.opacity=i>unlocked?'.35':'1';b.disabled=i>unlocked;b.onclick=()=>start(i);el.appendChild(b);}$('menu').classList.add('hidden');$('levelMenu').classList.remove('hidden');}
+function pos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+canvas.addEventListener('pointermove',e=>{if(mode==='playing'&&!projectile){aim=pos(e);draw();}});
+canvas.addEventListener('pointerdown',e=>{if(mode!=='playing')return;aim=pos(e);shoot();});
+$('play').onclick=()=>start(1);$('levelsBtn').onclick=showLevels;$('backMenu').onclick=menu;
+$('shootBtn').onclick=shoot;$('pauseBtn').onclick=()=>{if(mode==='playing'){mode='pause';$('pause').classList.remove('hidden');}};
+$('resumeBtn').onclick=()=>{mode='playing';$('pause').classList.add('hidden');};$('pauseHome').onclick=menu;
+$('retryBtn').onclick=()=>start(level);$('nextBtn').onclick=()=>start(level+1);$('homeBtn').onclick=menu;
+$('soundBtn').onclick=()=>{sound=!sound;$('soundBtn').textContent=sound?'🔊 SOUND':'🔇 MUTED';toast(sound?'Sound on':'Sound off');};
+resize();requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
